@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Tracker</title>
+
+<style>
+body { font-family: Arial; padding: 15px; }
+button { padding: 12px; margin: 5px 0; width: 100%; }
+textarea, input, select { width: 100%; margin: 5px 0; padding: 8px; }
+</style>
+</head>
+
+<body>
+
+<h2>📚 Study Tracker</h2>
+
+<input id="topicInput" placeholder="새 주제 입력">
+<button onclick="createTopic()">주제 추가</button>
+
+<select id="topicList"></select>
+
+<button onclick="loadAttempts()">기록 보기</button>
+
+<h3>답안 작성</h3>
+<p>👉 키보드 🎤 버튼으로 음성 입력 가능</p>
+<textarea id="content"></textarea>
+
+<button onclick="saveAttempt()">저장</button>
+
+<h3>이전 기록</h3>
+<div id="history"></div>
+
+<script>
+const API = "https://study-partner-k4oc.onrender.com"; 
+async function createTopic() {
+    const title = document.getElementById("topicInput").value;
+
+    await fetch(API + "/topics", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({title})
+    });
+
+    loadTopics();
+}
+
+async function loadTopics() {
+    const res = await fetch(API + "/topics");
+    const data = await res.json();
+
+    const select = document.getElementById("topicList");
+    select.innerHTML = "";
+
+    data.forEach(t => {
+        const opt = document.createElement("option");
+        opt.value = t[0];
+        opt.text = t[1];
+        select.appendChild(opt);
+    });
+}
+
+async function saveAttempt() {
+    const topic_id = document.getElementById("topicList").value;
+    const content = document.getElementById("content").value;
+
+    await fetch(API + "/attempts", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({topic_id, content})
+    });
+
+    alert("저장 완료!");
+    loadAttempts();
+}
+
+async function loadAttempts() {
+    const topic_id = document.getElementById("topicList").value;
+    const res = await fetch(API + "/attempts/" + topic_id);
+    const data = await res.json();
+
+    const div = document.getElementById("history");
+    div.innerHTML = "";
+
+    data.forEach(a => {
+        const p = document.createElement("p");
+        p.innerText = a[2] + " (" + a[3] + ")";
+        div.appendChild(p);
+    });
+}
+
+loadTopics();
+</script>
+
+</body>
+</html>
