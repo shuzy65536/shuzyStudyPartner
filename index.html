@@ -7,7 +7,7 @@
 <style>
 body { font-family: Arial; padding: 15px; }
 button { padding: 12px; margin: 5px 0; width: 100%; }
-textarea, input, select { width: 100%; margin: 5px 0; padding: 8px; }
+textarea, select, input { width: 100%; margin: 5px 0; padding: 8px; }
 </style>
 </head>
 
@@ -15,15 +15,21 @@ textarea, input, select { width: 100%; margin: 5px 0; padding: 8px; }
 
 <h2>📚 Study Tracker</h2>
 
-<input id="topicInput" placeholder="새 주제 입력">
-<button onclick="createTopic()">주제 추가</button>
+<h3>CSV 업로드</h3>
+<input type="file" id="fileInput">
+<button onclick="uploadCSV()">업로드</button>
 
-<select id="topicList"></select>
+<h3>카테고리 선택</h3>
+<select id="category"></select>
 
-<button onclick="loadAttempts()">기록 보기</button>
+<button onclick="pickRandom()">🎯 랜덤 주제 선택 + 타이머</button>
+
+<h2 id="topic">주제를 선택하세요</h2>
+
+<h1 id="timer">30:00</h1>
 
 <h3>답안 작성</h3>
-<p>👉 키보드 🎤 버튼으로 음성 입력 가능</p>
+<p>👉 키보드 🎤 버튼 사용 가능</p>
 <textarea id="content"></textarea>
 
 <button onclick="saveAttempt()">저장</button>
@@ -32,51 +38,97 @@ textarea, input, select { width: 100%; margin: 5px 0; padding: 8px; }
 <div id="history"></div>
 
 <script>
-const API = "https://study-partner-k4oc.onrender.com"; 
-async function createTopic() {
-    const title = document.getElementById("topicInput").value;
+const API = "https://your-app.onrender.com";
 
-    await fetch(API + "/topics", {
+let currentTopicId = null;
+let timerInterval = null;
+
+// CSV 업로드
+async function uploadCSV() {
+    const file = document.getElementById("fileInput").files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+
+    await fetch(API + "/upload", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({title})
+        body: formData
     });
 
-    loadTopics();
+    alert("업로드 완료!");
+    loadCategories();
 }
 
-async function loadTopics() {
-    const res = await fetch(API + "/topics");
+// 카테고리 로드
+async function loadCategories() {
+    const res = await fetch(API + "/categories");
     const data = await res.json();
 
-    const select = document.getElementById("topicList");
+    const select = document.getElementById("category");
     select.innerHTML = "";
 
-    data.forEach(t => {
+    data.forEach(c => {
         const opt = document.createElement("option");
-        opt.value = t[0];
-        opt.text = t[1];
+        opt.value = c;
+        opt.text = c;
         select.appendChild(opt);
     });
 }
 
+// 랜덤 주제
+async function pickRandom() {
+    const category = document.getElementById("category").value;
+
+    const res = await fetch(API + "/random/" + category);
+    const data = await res.json();
+
+    currentTopicId = data.id;
+    document.getElementById("topic").innerText = data.title;
+
+    startTimer(1800);
+    loadAttempts();
+}
+
+// 타이머
+function startTimer(seconds) {
+    clearInterval(timerInterval);
+
+    let remaining = seconds;
+
+    timerInterval = setInterval(() => {
+        const min = String(Math.floor(remaining / 60)).padStart(2, '0');
+        const sec = String(remaining % 60).padStart(2, '0');
+
+        document.getElementById("timer").innerText = `${min}:${sec}`;
+
+        remaining--;
+
+        if (remaining < 0) {
+            clearInterval(timerInterval);
+            alert("시간 종료!");
+        }
+    }, 1000);
+}
+
+// 저장
 async function saveAttempt() {
-    const topic_id = document.getElementById("topicList").value;
     const content = document.getElementById("content").value;
 
     await fetch(API + "/attempts", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({topic_id, content})
+        body: JSON.stringify({
+            topic_id: currentTopicId,
+            content: content
+        })
     });
 
     alert("저장 완료!");
     loadAttempts();
 }
 
+// 이전 기록
 async function loadAttempts() {
-    const topic_id = document.getElementById("topicList").value;
-    const res = await fetch(API + "/attempts/" + topic_id);
+    const res = await fetch(API + "/attempts/" + currentTopicId);
     const data = await res.json();
 
     const div = document.getElementById("history");
@@ -84,12 +136,12 @@ async function loadAttempts() {
 
     data.forEach(a => {
         const p = document.createElement("p");
-        p.innerText = a[2] + " (" + a[3] + ")";
+        p.innerText = a[0] + " (" + a[1] + ")";
         div.appendChild(p);
     });
 }
 
-loadTopics();
+loadCategories();
 </script>
 
 </body>
